@@ -1,0 +1,70 @@
+[project]
+name = "fraud-zero"
+version = "0.1.0"
+description = "API de detecção de fraudes em tempo real para PIX e Cartão de Crédito"
+authors = [
+    {name = "Cauã Ernani", email = "caua.l@aluno.ifsp.edu.br"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+
+dependencies = [
+    "fastapi[standard] (>=0.128.0,<0.129.0)",      # Motor da API 
+    "sqlalchemy[asyncio] (>=2.0.46,<3.0.0)",        # Banco de Dados assíncrono [cite: 274, 275]
+    "pydantic-settings (>=2.12.0,<3.0.0)",          # Gestão de chaves e envs 
+    "alembic (>=1.18.1,<2.0.0)",                    # Migrações do Postgres [cite: 36, 59]
+    "pwdlib[argon2] (>=0.3.0,<0.4.0)",              # Segurança e hash de senhas [cite: 22, 59]
+    "pyjwt (>=2.10.1,<3.0.0)",                      # Tokens para instituições bancárias [cite: 59]
+    "psycopg[binary] (>=3.3.2,<4.0.0)",             # Driver do PostgreSQL [cite: 274]
+    
+    # --- Stack de Machine Learning (O Cérebro) --- 
+    "xgboost (>=2.1.0)",                            # Algoritmo principal de detecção [cite: 288]
+    "pandas (>=2.2.0)",                             # Manipulação do dataset PaySim 
+    "scikit-learn (>=1.5.0)",                       # Pré-processamento e métricas 
+    "imbalanced-learn (>=0.12.0)",                  # Técnica SMOTE para balanceamento [cite: 163, 271]
+    "joblib (>=1.3.2)"                              # Carregar o modelo treinado (.pkl) 
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[dependency-groups]
+dev = [
+    "ruff (>=0.14.11,<0.15.0)",                     # Linter para código limpo [cite: 247]
+    "pytest (>=9.0.2,<10.0.0)",                     # Testes de unidade e integração [cite: 71, 84]
+    "pytest-cov (>=7.0.0,<8.0.0)",                  # Cobertura de testes [cite: 71]
+    "taskipy (>=1.14.1,<2.0.0)",                    # Automação de tarefas
+    "pytest-asyncio (>=1.3.0,<2.0.0)",              # Testes assíncronos para FastAPI [cite: 71]
+    "factory-boy (>=3.3.3,<4.0.0)",                 # Gerar dados falsos para testes
+    "freezegun (>=1.5.5,<2.0.0)"                    # Simular o tempo (step) do PaySim
+]
+
+[tool.taskipy.tasks]
+lint = 'ruff check'
+pre_format = 'ruff check --fix'
+format = 'ruff format'
+run = 'fastapi dev app/main.py'                     # Ajustado para o novo caminho
+pre_test = 'task lint'
+test = 'pytest -s -x --cov=app -vv'
+post_test = 'coverage html'
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ['migrations']
+
+[tool.ruff.lint]
+preview = true
+select = ['I', 'F', 'E', 'W', 'PL', 'PT', 'FAST']
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'
+
+[tool.pytest.ini_options]
+pythonpath = "."
+addopts = '-p no:warnings'
+asyncio_default_fixture_loop_scope = 'function'
+
+[tool.poetry]
+package-mode = false
