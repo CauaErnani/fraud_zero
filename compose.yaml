@@ -1,0 +1,28 @@
+services:
+  database:
+    image: postgres:16-alpine
+    container_name: fraud_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_DB: fraud_db
+      POSTGRES_PASSWORD: app_password
+    ports:
+      - "5432:5432" 
+
+  app:
+    image: fraud_app
+    build: .
+    container_name: fraud_api
+    entrypoint: ./entrypoint.sh
+    ports:
+      - "8000:8000"
+    depends_on:
+      - database
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://app_user:app_password@database:5432/fraud_db
+      - MODEL_PATH=models/fraud_model.pkl
+
+volumes:
+  pgdata:
