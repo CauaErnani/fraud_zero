@@ -47,3 +47,8 @@ class ClienteSchema(ClienteBase):
 
 class ClienteCreateResponse(ClientePublico):
     api_key: str
+    
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str

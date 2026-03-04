@@ -18,11 +18,15 @@ async def create_instituicao(
     instituicao: ClienteSchema,
     session: Annotated[AsyncSession, Depends(get_session)],
 ):
-    query_nome = select(Cliente).where(Cliente.nome_instituicao == instituicao.nome_instituicao)
+    query_nome = select(Cliente).where(
+        Cliente.nome_instituicao == instituicao.nome_instituicao
+    )
     result_nome = await session.execute(query_nome)
     if result_nome.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Nome da instituição já cadastrado.")
-    
+        raise HTTPException(
+            status_code=400, detail='Nome da instituição já cadastrado.'
+        )
+
     query = select(Cliente).where(Cliente.cnpj == instituicao.cnpj)
     result = await session.execute(query)
     if result.scalar_one_or_none():

@@ -13,7 +13,7 @@ from app.database import get_session
 from app.models import Cliente
 from app.settings import Settings
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/token')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/login')
 pwd_context = PasswordHash.recommended()
 settings = Settings()
 
