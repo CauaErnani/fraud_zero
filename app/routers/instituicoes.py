@@ -5,10 +5,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import schemas
 from app.database import get_session
 from app.models import Cliente
 from app.schemas import ClienteCreateResponse, ClienteSchema
-from app.security import get_password_hash
+from app.security import get_current_user, get_password_hash
+
+T_Session = Annotated[AsyncSession, Depends(get_session)]
+T_CurrentUser = Annotated[Cliente, Depends(get_current_user)]
 
 router = APIRouter(prefix='/instituicoes', tags=['instituicoes'])
 
@@ -55,3 +59,29 @@ async def create_instituicao(
         'ultimo_acesso': new_client.ultimo_acesso,
         'api_key': plain_api_key,
     }
+
+
+@router.get('/', response_model=list[schemas.ClientePublico])
+async def list_instituicoes(
+    session: T_Session,
+    current_user: T_CurrentUser,  # Garante que só quem tem Token acessa
+):
+    query = select(Cliente)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+@router.patch('/{id}/status', response_model=schemas.ClientePublico)
+async def alterar_status_instituicao(
+    id: str, session: T_Session, current_user: T_CurrentUser
+):
+    cliente = await session.get(Cliente, id)
+    if not cliente:
+        raise HTTPException(
+            status_code=404, detail='Instituição não encontrada'
+        )
+
+    cliente.ativo = not cliente.ativo
+    await session.commit()
+    await session.refresh(cliente)
+    return cliente

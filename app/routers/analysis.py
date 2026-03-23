@@ -2,8 +2,10 @@ from http import HTTPStatus
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import schemas
 from app.database import get_session
 from app.models import Cliente, LogAnalise
 from app.schemas import PredicaoRisco, TransacaoEntrada
@@ -43,3 +45,11 @@ async def solicitar_analise(
         'is_fraud': is_fraud,
         'risk_score': risk_score,
     }
+
+
+@router.get('/historico', response_model=list[schemas.LogAnalise])
+async def obter_historico(session: T_Session, cliente: T_CurrentUser):
+    # Os logs são filtrados para que uma empresa não veja os dados da outra
+    query = select(LogAnalise).where(LogAnalise.cliente_id == cliente.id)
+    result = await session.execute(query)
+    return result.scalars().all()

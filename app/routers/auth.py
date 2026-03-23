@@ -30,10 +30,10 @@ async def login_for_access_token(
     session: T_Session,
 ):
     """
-    Faz login usando o **CNPJ** no campo 'username' 
+    Faz login usando o **CNPJ** no campo 'username'
     e a **API Key** no campo 'password'.
     """
-    
+
     cliente = await session.scalar(
         select(Cliente).where(Cliente.cnpj == form_data.username)
     )
