@@ -9,10 +9,10 @@ from app import schemas
 from app.database import get_session
 from app.models import Cliente
 from app.schemas import ClienteCreateResponse, ClienteSchema
-from app.security import get_current_user, get_password_hash
+from app.security import get_current_admin, get_password_hash
 
 T_Session = Annotated[AsyncSession, Depends(get_session)]
-T_CurrentUser = Annotated[Cliente, Depends(get_current_user)]
+T_CurrentAdmin = Annotated[str, Depends(get_current_admin)]
 
 router = APIRouter(prefix='/instituicoes', tags=['instituicoes'])
 
@@ -20,24 +20,22 @@ router = APIRouter(prefix='/instituicoes', tags=['instituicoes'])
 @router.post('/', response_model=ClienteCreateResponse, status_code=201)
 async def create_instituicao(
     instituicao: ClienteSchema,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    session: T_Session,
+    _: T_CurrentAdmin,  # Apenas verifica que é admin, não usa o valor
 ):
     query_nome = select(Cliente).where(
         Cliente.nome_instituicao == instituicao.nome_instituicao
     )
-    result_nome = await session.execute(query_nome)
-    if result_nome.scalar_one_or_none():
+    if await session.scalar(query_nome):
         raise HTTPException(
             status_code=400, detail='Nome da instituição já cadastrado.'
         )
 
-    query = select(Cliente).where(Cliente.cnpj == instituicao.cnpj)
-    result = await session.execute(query)
-    if result.scalar_one_or_none():
+    query_cnpj = select(Cliente).where(Cliente.cnpj == instituicao.cnpj)
+    if await session.scalar(query_cnpj):
         raise HTTPException(status_code=400, detail='CNPJ já cadastrado.')
 
     plain_api_key = f'fz_{secrets.token_urlsafe(32)}'
-
     hashed_key = get_password_hash(plain_api_key)
 
     new_client = Cliente(
@@ -62,18 +60,14 @@ async def create_instituicao(
 
 
 @router.get('/', response_model=list[schemas.ClientePublico])
-async def list_instituicoes(
-    session: T_Session,
-    current_user: T_CurrentUser,  # Garante que só quem tem Token acessa
-):
-    query = select(Cliente)
-    result = await session.execute(query)
+async def list_instituicoes(session: T_Session, _: T_CurrentAdmin):
+    result = await session.execute(select(Cliente))
     return result.scalars().all()
 
 
 @router.patch('/{id}/status', response_model=schemas.ClientePublico)
 async def alterar_status_instituicao(
-    id: str, session: T_Session, current_user: T_CurrentUser
+    id: str, session: T_Session, _: T_CurrentAdmin
 ):
     cliente = await session.get(Cliente, id)
     if not cliente:

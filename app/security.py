@@ -13,7 +13,15 @@ from app.database import get_session
 from app.models import Cliente
 from app.settings import Settings
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='auth/login')
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl='auth/login',
+    scheme_name='Instituição Bancária',
+)
+oauth2_admin_scheme = OAuth2PasswordBearer(
+    tokenUrl='auth/admin/login',
+    scheme_name='Administrador',
+)
+
 pwd_context = PasswordHash.recommended()
 settings = Settings()
 
@@ -28,18 +36,11 @@ def verify_password(plain_password: str, hashed_password: str):
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-
     expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
     )
-
     to_encode.update({'exp': expire})
-
-    encoded_jwt = encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
-    )
-
-    return encoded_jwt
+    return encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 async def get_current_user(
@@ -57,12 +58,14 @@ async def get_current_user(
             token, settings.SECRET_KEY, algorithms=settings.ALGORITHM
         )
         subject_cnpj = payload.get('sub')
-        if not subject_cnpj:
+        role = payload.get('role')
+
+        if not subject_cnpj or role != 'instituicao':
             raise credentials_exception
-    except DecodeError:
+
+    except (DecodeError, ExpiredSignatureError):
         raise credentials_exception
-    except ExpiredSignatureError:
-        raise credentials_exception
+
     cliente = await session.scalar(
         select(Cliente).where(Cliente.cnpj == subject_cnpj)
     )
@@ -71,3 +74,27 @@ async def get_current_user(
         raise credentials_exception
 
     return cliente
+
+
+async def get_current_admin(
+    token: str = Depends(oauth2_admin_scheme),
+):
+    credentials_exception = HTTPException(
+        status_code=HTTPStatus.UNAUTHORIZED,
+        detail='Acesso restrito ao administrador',
+        headers={'WWW-Authenticate': 'Bearer'},
+    )
+
+    try:
+        payload = decode(
+            token, settings.SECRET_KEY, algorithms=settings.ALGORITHM
+        )
+        role = payload.get('role')
+
+        if role != 'admin':
+            raise credentials_exception
+
+    except (DecodeError, ExpiredSignatureError):
+        raise credentials_exception
+
+    return payload.get('sub')
